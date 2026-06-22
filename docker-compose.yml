@@ -1,0 +1,31 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"                   # expõe a API também para o host (opcional)
+    volumes:
+      - ollama_data:/root/.ollama       # persistência dos modelos
+    environment:
+      - OLLAMA_HOST=0.0.0.0             # aceita conexões de qualquer origem
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "🔽 Baixando modelo llama3.2:3b..."
+        ollama pull llama3.2:3b
+        echo "✅ Modelo pronto. Iniciando Ollama..."
+        exec ollama serve
+    networks:
+      - raijmobi-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  ollama_data:
+
+networks:
+  raijmobi-network:
+    external: true          # usa a rede já existente
