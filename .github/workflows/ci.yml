@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: docker build -t ollama-test .
+
+      - name: Start container in background
+        run: |
+          docker run -d --name ollama-ci -p 11434:11434 ollama-test
+          sleep 10  # Aguarda o servidor iniciar
+
+      - name: Check if container is running
+        run: |
+          if docker ps | grep -q ollama-ci; then
+            echo "✅ Container está rodando!"
+          else
+            echo "❌ Container parou inesperadamente"
+            docker logs ollama-ci
+            exit 1
+          fi
+
+      - name: (Optional) Test API response
+        run: |
+          curl --fail --retry 3 --retry-delay 2 http://localhost:11434/api/tags || exit 1
+
+      - name: Clean up
+        if: always()
+        run: docker stop ollama-ci && docker rm ollama-ci
